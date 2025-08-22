@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arama Sonuçları</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        .status-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .status-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .status-details {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            margin: 10px;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .back-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            margin: 10px;
+        }
+        
+        .back-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .error {
+            color: #dc3545;
+        }
+        
+        .success {
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if job.status == 'completed' %}
+            <div class="status-icon">✅</div>
+            <h1 class="status-title success">Arama Tamamlandı!</h1>
+            <div class="status-details">
+                <p><strong>Lokasyon:</strong> {{ job.location }}</p>
+                <p><strong>İşletme Türü:</strong> {{ job.business_type }}</p>
+                <p><strong>Yarıçap:</strong> {{ job.radius_km }} km</p>
+                <p><strong>Bulunan İşletme:</strong> {{ job.result_count }} adet</p>
+            </div>
+            
+            <a href="{{ url_for('download_file', filename=job.filename) }}" class="download-btn">
+                📥 Excel Dosyasını İndir
+            </a>
+            
+        {% elif job.status == 'error' %}
+            <div class="status-icon">❌</div>
+            <h1 class="status-title error">Hata Oluştu</h1>
+            <div class="status-details">
+                <p>{{ job.error_message }}</p>
+            </div>
+            
+        {% elif job.status == 'running' %}
+            <div class="status-icon">🔍</div>
+            <h1 class="status-title">Arama Devam Ediyor...</h1>
+            <div class="status-details">
+                <p><strong>Lokasyon:</strong> {{ job.location }}</p>
+                <p><strong>İşletme Türü:</strong> {{ job.business_type }}</p>
+                <p><strong>İlerleme:</strong> %{{ job.progress }}</p>
+            </div>
+            
+            <script>
+                // Sayfa otomatik yenilensin
+                setTimeout(() => {
+                    location.reload();
+                }, 3000);
+            </script>
+            
+        {% else %}
+            <div class="status-icon">⏳</div>
+            <h1 class="status-title">Arama Başlatılıyor...</h1>
+            <div class="status-details">
+                <p>Lütfen bekleyin...</p>
+            </div>
+            
+            <script>
+                // Sayfa otomatik yenilensin
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            </script>
+        {% endif %}
+        
+        <a href="{{ url_for('index') }}" class="back-btn">
+            🔙 Ana Sayfaya Dön
+        </a>
+    </div>
+</body>
+</html>

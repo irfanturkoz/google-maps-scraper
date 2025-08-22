@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ Google Maps İşletme Bilgisi Çekme</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            gap: 30px;
+        }
+        
+        .main-content {
+            flex: 2;
+        }
+        
+        .sidebar {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+        }
+        
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-welcome {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .admin-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .user-expiry {
+            margin-bottom: 10px;
+        }
+
+        .days-left {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .days-left.good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .days-left.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .days-left.expired {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-admin, .btn-logout {
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-admin {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-admin:hover {
+            background-color: #5a6fd8;
+        }
+
+        .btn-logout {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-logout:hover {
+            background-color: #5a6268;
+        }
+        
+        .search-history {
+            margin-top: 20px;
+        }
+        
+        .search-history h3 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .history-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .history-location {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .history-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .history-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+        
+        .no-history {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .search-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e1e5e9;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .status-message {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .business-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .business-tag {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 20px;
+            padding: 8px 12px;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .business-tag:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .success-message {
+            background: #efe;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <div class="header">
+                <div class="header-content">
+                    <div>
+                        <h1>🗺️ Google Maps İşletme Bilgisi Çekme</h1>
+                        <p>Belirli bir lokasyon ve yarıçapta işletme bilgilerini çekin ve Excel dosyasına kaydedin</p>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-welcome">
+                            Hoş geldin, <strong>{{ user.username }}</strong>
+                            {% if user.is_admin %}
+                                <span class="admin-badge">Admin</span>
+                            {% endif %}
+                        </div>
+                        <div class="user-expiry">
+                            {% if user.expiry_date and user.expiry_date[:4] >= '2099' %}
+                                <span class="days-left good">Sınırsız üyelik</span>
+                            {% elif user.days_left > 7 %}
+                                <span class="days-left good">{{ user.days_left }} gün kaldı</span>
+                            {% elif user.days_left > 0 %}
+                                <span class="days-left warning">{{ user.days_left }} gün kaldı</span>
+                            {% else %}
+                                <span class="days-left expired">Süreniz dolmuş</span>
+                            {% endif %}
+                        </div>
+                        <div class="user-actions">
+                            {% if user.is_admin %}
+                                <a href="{{ url_for('admin') }}" class="btn-admin">🛠️ Admin Panel</a>
+                            {% endif %}
+                            <a href="{{ url_for('logout') }}" class="btn-logout">🚪 Çıkış</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+        <form id="searchForm">
+            <div class="form-group">
+                <label for="il">🏙️ İl Seçin:</label>
+                <select id="il" name="il" required>
+                    <option value="">İl seçiniz...</option>
+                    {% for il in iller %}
+                    <option value="{{ il }}">{{ il }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="ilce">🏘️ İlçe Seçin (İsteğe Bağlı):</label>
+                <select id="ilce" name="ilce">
+                    <option value="">İlçe seçiniz...</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="business_type">🏢 İşletme Türü:</label>
+                <input type="text" id="business_type" name="business_type" placeholder="Örn: güzellik merkezi, restoran, eczane" required>
+                
+                <div class="business-types">
+                    <div class="business-tag" onclick="selectBusinessType('güzellik merkezi')">💄 Güzellik Merkezi</div>
+                    <div class="business-tag" onclick="selectBusinessType('restoran')">🍽️ Restoran</div>
+                    <div class="business-tag" onclick="selectBusinessType('eczane')">💊 Eczane</div>
+                    <div class="business-tag" onclick="selectBusinessType('berber')">✂️ Berber</div>
+                    <div class="business-tag" onclick="selectBusinessType('kuaför')">💇 Kuaför</div>
+                    <div class="business-tag" onclick="selectBusinessType('cafe')">☕ Cafe</div>
+                    <div class="business-tag" onclick="selectBusinessType('market')">🛒 Market</div>
+                    <div class="business-tag" onclick="selectBusinessType('hastane')">🏥 Hastane</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="radius_km">📏 Arama Yarıçapı (km):</label>
+                <input type="number" id="radius_km" name="radius_km" value="3" min="1" max="50" required>
+            </div>
+            
+            <button type="submit" class="search-btn" id="searchBtn">
+                🔍 Arama Başlat
+            </button>
+        </form>
+        
+        <div id="result" style="display: none;">
+            <div id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div id="status-message" class="status-message">Arama başlatılıyor...</div>
+            </div>
+            <div id="download-section" style="display: none;">
+                <div class="success-message">
+                    ✅ Arama tamamlandı! Excel dosyası hazır.
+                </div>
+                <a id="download-link" href="#" class="download-btn" download>
+                    📥 Excel Dosyasını İndir
+                </a>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="search-history">
+                <h3>📋 Son Aramalarım</h3>
+                {% if search_history %}
+                    {% for search in search_history %}
+                    <div class="history-item">
+                        <div class="history-location">{{ search.location }}</div>
+                        <div class="history-details">
+                            {{ search.business_type }} • {{ search.radius_km }}km
+                            {% if search.result_count > 0 %}
+                                • {{ search.result_count }} sonuç
+                            {% endif %}
+                        </div>
+                        <div class="history-time">{{ search.created_at[:16] }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-history">
+                        Henüz arama yapmadınız
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let statusInterval = null;
+        
+        // İl seçildiğinde ilçeleri yükle
+        document.getElementById('il').addEventListener('change', function() {
+            const il = this.value;
+            const ilceSelect = document.getElementById('ilce');
+            
+            ilceSelect.innerHTML = '<option value="">İlçe seçiniz...</option>';
+            
+            if (il) {
+                fetch(`/api/ilceler/${il}`)
+                    .then(response => response.json())
+                    .then(ilceler => {
+                        ilceler.forEach(ilce => {
+                            const option = document.createElement('option');
+                            option.value = ilce;
+                            option.textContent = ilce;
+                            ilceSelect.appendChild(option);
+                        });
+                    });
+            }
+        });
+        
+        // İşletme türü seçimi
+        function selectBusinessType(type) {
+            document.getElementById('business_type').value = type;
+        }
+        
+        // Form gönderimi
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = {
+                il: formData.get('il'),
+                ilce: formData.get('ilce'),
+                business_type: formData.get('business_type'),
+                radius_km: formData.get('radius_km')
+            };
+            
+            startSearch(data);
+        });
+        
+        function startSearch(data) {
+            const searchBtn = document.getElementById('searchBtn');
+            const resultDiv = document.getElementById('result');
+            const progressContainer = document.getElementById('progress-container');
+            const statusMessage = document.getElementById('status-message');
+            
+            searchBtn.disabled = true;
+            searchBtn.textContent = '🔍 Aranıyor...';
+            resultDiv.style.display = 'block';
+            statusMessage.textContent = 'Arama başlatılıyor...';
+            
+            fetch('/api/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.error) {
+                    statusMessage.textContent = '❌ ' + result.error;
+                    resetForm();
+                } else {
+                    currentJobId = result.job_id;
+                    statusMessage.textContent = 'Arama başlatıldı...';
+                    checkStatus();
+                }
+            })
+            .catch(error => {
+                statusMessage.textContent = '❌ Bir hata oluştu: ' + error.message;
+                resetForm();
+            });
+        }
+        
+        function checkStatus() {
+            if (!currentJobId) return;
+            
+            fetch(`/api/status/${currentJobId}`)
+                .then(response => response.json())
+                .then(status => {
+                    updateProgress(status);
+                    
+                    if (status.status === 'completed') {
+                        showSuccess(status);
+                        resetForm();
+                    } else if (status.status === 'error') {
+                        showError(status.error_message);
+                        resetForm();
+                    } else {
+                        // Devam eden işlem, 2 saniye sonra tekrar kontrol et
+                        setTimeout(checkStatus, 2000);
+                    }
+                })
+                .catch(error => {
+                    showError('Durum kontrolü hatası: ' + error.message);
+                    resetForm();
+                });
+        }
+        
+        function updateProgress(status) {
+            const progressFill = document.getElementById('progress-fill');
+            const statusMessage = document.getElementById('status-message');
+            
+            progressFill.style.width = status.progress + '%';
+            
+            if (status.status === 'running') {
+                statusMessage.textContent = `Aranıyor: ${status.location} - ${status.business_type}`;
+            } else if (status.status === 'completed') {
+                statusMessage.textContent = `Tamamlandı! ${status.result_count} işletme bulundu.`;
+            }
+        }
+        
+        function showError(message) {
+            const statusMessage = document.getElementById('status-message');
+            statusMessage.textContent = '❌ ' + message;
+        }
+        
+        function showSuccess(status) {
+            const downloadSection = document.getElementById('download-section');
+            const downloadLink = document.getElementById('download-link');
+            
+            downloadLink.href = status.download_url;
+            downloadSection.style.display = 'block';
+        }
+        
+        function resetForm() {
+            const searchBtn = document.getElementById('searchBtn');
+            const resultDiv = document.getElementById('result');
+            const downloadSection = document.getElementById('download-section');
+            
+            searchBtn.disabled = false;
+            searchBtn.textContent = '🔍 Arama Başlat';
+            
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+                downloadSection.style.display = 'none';
+            }, 3000);
+            
+            currentJobId = null;
+        }
+    </script>
+</body>
+</html>
