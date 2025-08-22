@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ['python39']
+nixPkgs = ['python39', 'pip']
 
 [phases.install]
-cmds = ['pip install -r requirements.txt']
+cmds = ['python -m pip install --upgrade pip', 'pip install -r requirements.txt']
 
 [phases.build]
 cmds = ['python -c "from database import Database; db = Database(); db.init_db()"']
