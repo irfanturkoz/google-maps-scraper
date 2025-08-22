@@ -188,10 +188,15 @@ class GoogleMapsScraper:
             result = place_details.get('result', {})
             
             
+            # Telefon numarası yoksa işletmeyi dahil etme
+            phone_number = result.get('formatted_phone_number', 'N/A')
+            if phone_number == 'N/A' or not phone_number:
+                return None
+            
             business_info = {
                 'İşletme Adı': result.get('name', 'N/A'),
                 'Adres': result.get('formatted_address', 'N/A'),
-                'Telefon': result.get('formatted_phone_number', 'N/A'),
+                'Telefon': phone_number,
                 'Website': result.get('website', 'N/A'),
                 'Durum': result.get('business_status', 'N/A')
             }
