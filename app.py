@@ -13,7 +13,8 @@ from google_maps_scraper import GoogleMapsScraper
 from database import Database
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this'
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+
 load_dotenv()
 
 # Flask-Login setup
