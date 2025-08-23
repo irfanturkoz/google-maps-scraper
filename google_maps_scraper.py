@@ -40,11 +40,12 @@ class GoogleMapsScraper:
             businesses = []
             seen_place_ids = set()
             
-            # Hızlı arama - sadece en etkili stratejiyi kullan
+            # 1. Nearby Search - Google Places type ile
+            place_type = self._get_place_type(business_type)
             places_result = self.gmaps.places_nearby(
                 location=(lat, lng),
-                radius=int(radius_km * 1000),  # km'yi metreye çevir
-                keyword=business_type
+                radius=int(radius_km * 1000),
+                type=place_type
             )
             
             # İlk sayfa sonuçları
@@ -56,40 +57,56 @@ class GoogleMapsScraper:
                     if business_details and self._is_in_target_location(business_details, location):
                         businesses.append(business_details)
             
-            # Sadece bir sonraki sayfa için kontrol (hız için sınırlı)
-            if places_result.get('next_page_token') and len(businesses) < 10:
-                time.sleep(1)  # Token aktif olması için minimal bekleme
-                
-                places_result = self.gmaps.places_nearby(
-                    location=(lat, lng),
-                    radius=int(radius_km * 1000),
-                    keyword=business_type,
-                    page_token=places_result.get('next_page_token')
-                )
-                
-                for place in places_result.get('results', []):
-                    place_id = place.get('place_id')
-                    if place_id and place_id not in seen_place_ids:
-                        seen_place_ids.add(place_id)
-                        business_details = self._get_business_details(place_id)
-                        if business_details and self._is_in_target_location(business_details, location):
-                            businesses.append(business_details)
+            # 2. Nearby Search - keyword ile (ek arama)
+            places_result2 = self.gmaps.places_nearby(
+                location=(lat, lng),
+                radius=int(radius_km * 1000),
+                keyword=business_type
+            )
             
-            # Eğer yeterli sonuç yoksa text search ekle
-            if len(businesses) < 5:
-                text_search_results = self._text_search(location, business_type, radius_km)
-                for result in text_search_results[:10]:  # Sadece ilk 10 sonuç
-                    place_id = result.get('place_id')
-                    if place_id and place_id not in seen_place_ids:
-                        seen_place_ids.add(place_id)
-                        business_details = self._get_business_details(place_id)
-                        if business_details and self._is_in_target_location(business_details, location):
-                            businesses.append(business_details)
+            for place in places_result2.get('results', []):
+                place_id = place.get('place_id')
+                if place_id and place_id not in seen_place_ids:
+                    seen_place_ids.add(place_id)
+                    business_details = self._get_business_details(place_id)
+                    if business_details and self._is_in_target_location(business_details, location):
+                        businesses.append(business_details)
+            
+            # 3. Text Search - daha geniş arama
+            text_search_results = self._text_search(location, business_type, radius_km)
+            for result in text_search_results[:20]:  # Daha fazla sonuç
+                place_id = result.get('place_id')
+                if place_id and place_id not in seen_place_ids:
+                    seen_place_ids.add(place_id)
+                    business_details = self._get_business_details(place_id)
+                    if business_details and self._is_in_target_location(business_details, location):
+                        businesses.append(business_details)
+            
+            # 4. Alternatif text search sorguları
+            alternative_queries = [
+                f"{business_type} {location}",
+                f"{location} {business_type}",
+                f"{business_type} in {location}"
+            ]
+            
+            for query in alternative_queries:
+                try:
+                    alt_results = self.gmaps.places(query=query)
+                    for result in alt_results.get('results', [])[:15]:
+                        place_id = result.get('place_id')
+                        if place_id and place_id not in seen_place_ids:
+                            seen_place_ids.add(place_id)
+                            business_details = self._get_business_details(place_id)
+                            if business_details and self._is_in_target_location(business_details, location):
+                                businesses.append(business_details)
+                except:
+                    continue
                 
             return businesses
             
         except Exception as e:
             print(f"Arama sırasında hata: {str(e)}")
+            return []
     
     def _get_place_type(self, business_type: str) -> str:
         """İşletme türüne göre Google Places type döndür"""
@@ -135,9 +152,23 @@ class GoogleMapsScraper:
     def _text_search(self, location: str, business_type: str, radius_km: float) -> List[Dict]:
         """Text search ile ek arama yap"""
         try:
-            query = f"{business_type} near {location}"
-            text_results = self.gmaps.places(query=query)
-            return text_results.get('results', [])
+            # Birden fazla sorgu formatı dene
+            queries = [
+                f"{business_type} near {location}",
+                f"{business_type} {location}",
+                f"{location} {business_type}"
+            ]
+            
+            all_results = []
+            for query in queries:
+                try:
+                    text_results = self.gmaps.places(query=query)
+                    results = text_results.get('results', [])
+                    all_results.extend(results)
+                except:
+                    continue
+                    
+            return all_results
         except:
             return []
     
@@ -145,22 +176,29 @@ class GoogleMapsScraper:
         """İşletmenin hedef lokasyonda olup olmadığını kontrol et"""
         try:
             business_address = business_details.get('Adres', '').lower()
+            target_location_lower = target_location.lower()
             
-            # Hedef lokasyondan ilçe adını çıkar
-            target_parts = target_location.lower().split(',')
-            if len(target_parts) >= 2:
-                target_district = target_parts[0].strip()  # İlçe adı
-                target_city = target_parts[1].strip()     # İl adı
-                
-                # İşletme adresinde hedef ilçe geçiyor mu kontrol et
-                if target_district in business_address:
-                    return True
-                
-                # Eğer sadece il belirtilmişse (ilçe yok), tüm sonuçları kabul et
-                if not target_district or target_district == target_city:
+            # Hedef lokasyondan bölümleri çıkar
+            target_parts = target_location_lower.split(',')
+            
+            # Tüm parçaları kontrol et
+            for part in target_parts:
+                part = part.strip()
+                if part and part in business_address:
                     return True
             
-            return False
+            # Eğer virgül yoksa, direkt kontrol et
+            if ',' not in target_location_lower:
+                if target_location_lower in business_address:
+                    return True
+                    
+                # Başakşehir gibi özel durumlar için kelime bazlı kontrol
+                target_words = target_location_lower.split()
+                for word in target_words:
+                    if len(word) > 3 and word in business_address:  # Kısa kelimelerden kaçın
+                        return True
+            
+            return True  # Şüpheli durumlarda dahil et (daha fazla sonuç için)
         except:
             # Hata durumunda işletmeyi dahil et
             return True
