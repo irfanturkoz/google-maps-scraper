@@ -40,7 +40,7 @@ class GoogleMapsScraper:
             businesses = []
             seen_place_ids = set()
             
-            # 1. Nearby Search - Google Places type ile
+            # 1. Nearby Search - Google Places type ile (pagination destekli)
             place_type = self._get_place_type(business_type)
             places_result = self.gmaps.places_nearby(
                 location=(lat, lng),
@@ -57,7 +57,31 @@ class GoogleMapsScraper:
                     if business_details and self._is_in_target_location(business_details, location):
                         businesses.append(business_details)
             
-            # 2. Nearby Search - keyword ile (ek arama)
+            # Pagination - sonraki sayfalar
+            next_page_token = places_result.get('next_page_token')
+            page_count = 1
+            while next_page_token and page_count < 3:  # Maksimum 3 sayfa
+                time.sleep(2)  # Google API gereksinimi
+                try:
+                    next_result = self.gmaps.places_nearby(
+                        location=(lat, lng),
+                        radius=int(radius_km * 1000),
+                        type=place_type,
+                        page_token=next_page_token
+                    )
+                    for place in next_result.get('results', []):
+                        place_id = place.get('place_id')
+                        if place_id and place_id not in seen_place_ids:
+                            seen_place_ids.add(place_id)
+                            business_details = self._get_business_details(place_id)
+                            if business_details and self._is_in_target_location(business_details, location):
+                                businesses.append(business_details)
+                    next_page_token = next_result.get('next_page_token')
+                    page_count += 1
+                except:
+                    break
+            
+            # 2. Nearby Search - keyword ile (pagination destekli)
             places_result2 = self.gmaps.places_nearby(
                 location=(lat, lng),
                 radius=int(radius_km * 1000),
@@ -72,9 +96,33 @@ class GoogleMapsScraper:
                     if business_details and self._is_in_target_location(business_details, location):
                         businesses.append(business_details)
             
-            # 3. Text Search - daha geniş arama
-            text_search_results = self._text_search(location, business_type, radius_km)
-            for result in text_search_results[:20]:  # Daha fazla sonuç
+            # Pagination - keyword search için
+            next_page_token2 = places_result2.get('next_page_token')
+            page_count2 = 1
+            while next_page_token2 and page_count2 < 3:
+                time.sleep(2)
+                try:
+                    next_result2 = self.gmaps.places_nearby(
+                        location=(lat, lng),
+                        radius=int(radius_km * 1000),
+                        keyword=business_type,
+                        page_token=next_page_token2
+                    )
+                    for place in next_result2.get('results', []):
+                        place_id = place.get('place_id')
+                        if place_id and place_id not in seen_place_ids:
+                            seen_place_ids.add(place_id)
+                            business_details = self._get_business_details(place_id)
+                            if business_details and self._is_in_target_location(business_details, location):
+                                businesses.append(business_details)
+                    next_page_token2 = next_result2.get('next_page_token')
+                    page_count2 += 1
+                except:
+                    break
+            
+            # 3. Çoklu Grid Arama - daha kapsamlı sonuçlar
+            grid_results = self._grid_search(lat, lng, radius_km, place_type, business_type)
+            for result in grid_results:
                 place_id = result.get('place_id')
                 if place_id and place_id not in seen_place_ids:
                     seen_place_ids.add(place_id)
@@ -82,7 +130,17 @@ class GoogleMapsScraper:
                     if business_details and self._is_in_target_location(business_details, location):
                         businesses.append(business_details)
             
-            # 4. Alternatif text search sorguları
+            # 4. Text Search - daha geniş arama
+            text_search_results = self._text_search(location, business_type, radius_km)
+            for result in text_search_results[:30]:  # Daha fazla sonuç
+                place_id = result.get('place_id')
+                if place_id and place_id not in seen_place_ids:
+                    seen_place_ids.add(place_id)
+                    business_details = self._get_business_details(place_id)
+                    if business_details and self._is_in_target_location(business_details, location):
+                        businesses.append(business_details)
+            
+            # 5. Alternatif text search sorguları
             alternative_queries = [
                 f"{business_type} {location}",
                 f"{location} {business_type}",
@@ -107,6 +165,46 @@ class GoogleMapsScraper:
         except Exception as e:
             print(f"Arama sırasında hata: {str(e)}")
             return []
+    
+    def _grid_search(self, center_lat: float, center_lng: float, radius_km: float, place_type: str, business_type: str) -> List[Dict]:
+        """
+        Grid tabanlı arama - büyük alanları küçük parçalara bölerek daha kapsamlı sonuçlar
+        """
+        results = []
+        
+        # Büyük yarıçap için grid arama yap
+        if radius_km > 20:
+            # 4 farklı noktadan arama yap
+            grid_points = [
+                (center_lat + 0.1, center_lng + 0.1),  # Kuzeydoğu
+                (center_lat + 0.1, center_lng - 0.1),  # Kuzeybatı
+                (center_lat - 0.1, center_lng + 0.1),  # Güneydoğu
+                (center_lat - 0.1, center_lng - 0.1),  # Güneybatı
+            ]
+            
+            for lat, lng in grid_points:
+                try:
+                    # Her grid noktası için küçük yarıçapta arama
+                    grid_result = self.gmaps.places_nearby(
+                        location=(lat, lng),
+                        radius=15000,  # 15km
+                        type=place_type
+                    )
+                    results.extend(grid_result.get('results', []))
+                    
+                    # Keyword ile de ara
+                    grid_result2 = self.gmaps.places_nearby(
+                        location=(lat, lng),
+                        radius=15000,
+                        keyword=business_type
+                    )
+                    results.extend(grid_result2.get('results', []))
+                    
+                    time.sleep(0.1)  # Rate limiting
+                except:
+                    continue
+        
+        return results
     
     def _get_place_type(self, business_type: str) -> str:
         """İşletme türüne göre Google Places type döndür"""
